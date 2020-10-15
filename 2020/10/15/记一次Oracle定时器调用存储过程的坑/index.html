@@ -1,0 +1,269 @@
+<!DOCTYPE html><html lang="zh-CN" data-theme="light"><head><meta charset="UTF-8"><meta http-equiv="X-UA-Compatible" content="IE=edge"><meta name="viewport" content="width=device-width,initial-scale=1"><title>记一次Oracle定时器调用存储过程的坑 | Ruby</title><meta name="author" content="陶成彬"><meta name="copyright" content="陶成彬"><meta name="format-detection" content="telephone=no"><meta name="theme-color" content="#ffffff"><meta http-equiv="Cache-Control" content="no-transform"><meta http-equiv="Cache-Control" content="no-siteapp"><meta name="description" content="背景Oracle用scheduler写了一个定时器调用存储过程，每个月创建一次表。结果到定时器的执行时间了表却没有创建（预发布环境）。本地环境正常，模拟环境正常，开发环境正常，测试环境正常预发布环境异常没创建表（此时心中：万马奔腾，不得不提一句，docker真香） 排查问题刚发现这个问题的时候，一脸懵逼。特么本地环境，模拟环境，开发环境，测试环境都ok了，咋个预发布环境就出问题了？？带着一脸懵逼">
+<meta property="og:type" content="article">
+<meta property="og:title" content="记一次Oracle定时器调用存储过程的坑">
+<meta property="og:url" content="http://example.com/2020/10/15/%E8%AE%B0%E4%B8%80%E6%AC%A1Oracle%E5%AE%9A%E6%97%B6%E5%99%A8%E8%B0%83%E7%94%A8%E5%AD%98%E5%82%A8%E8%BF%87%E7%A8%8B%E7%9A%84%E5%9D%91/index.html">
+<meta property="og:site_name" content="Ruby">
+<meta property="og:description" content="背景Oracle用scheduler写了一个定时器调用存储过程，每个月创建一次表。结果到定时器的执行时间了表却没有创建（预发布环境）。本地环境正常，模拟环境正常，开发环境正常，测试环境正常预发布环境异常没创建表（此时心中：万马奔腾，不得不提一句，docker真香） 排查问题刚发现这个问题的时候，一脸懵逼。特么本地环境，模拟环境，开发环境，测试环境都ok了，咋个预发布环境就出问题了？？带着一脸懵逼">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="http://example.com/img/wall/5.jpg">
+<meta property="article:published_time" content="2020-10-15T07:26:46.652Z">
+<meta property="article:modified_time" content="2020-10-15T07:34:22.461Z">
+<meta property="article:author" content="陶成彬">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="http://example.com/img/wall/5.jpg"><link rel="shortcut icon" href="/img/wall/4.jpg"><link rel="canonical" href="http://example.com/2020/10/15/%E8%AE%B0%E4%B8%80%E6%AC%A1Oracle%E5%AE%9A%E6%97%B6%E5%99%A8%E8%B0%83%E7%94%A8%E5%AD%98%E5%82%A8%E8%BF%87%E7%A8%8B%E7%9A%84%E5%9D%91/"><link rel="preconnect" href="//cdn.jsdelivr.net"/><link rel="preconnect" href="//busuanzi.ibruce.info"/><link rel="stylesheet" href="/css/index.css"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free/css/all.min.css"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fancyapps/fancybox@latest/dist/jquery.fancybox.min.css"><script>var GLOBAL_CONFIG = { 
+  root: '/',
+  hexoversion: '5.2.0',
+  algolia: undefined,
+  localSearch: undefined,
+  translate: {"defaultEncoding":2,"translateDelay":0,"msgToTraditionalChinese":"繁","msgToSimplifiedChinese":"簡"},
+  noticeOutdate: undefined,
+  highlight: {"plugin":"highlighjs","highlightCopy":true,"highlightLang":true},
+  copy: {
+    success: '复制成功',
+    error: '复制错误',
+    noSupport: '浏览器不支持'
+  },
+  relativeDate: {
+    homepage: false,
+    post: false
+  },
+  runtime: '',
+  date_suffix: {
+    just: '刚刚',
+    min: '分钟前',
+    hour: '小时前',
+    day: '天前',
+    month: '个月前'
+  },
+  copyright: undefined,
+  ClickShowText: undefined,
+  lightbox: 'fancybox',
+  Snackbar: undefined,
+  justifiedGallery: {
+    js: 'https://cdn.jsdelivr.net/npm/justifiedGallery/dist/js/jquery.justifiedGallery.min.js',
+    css: 'https://cdn.jsdelivr.net/npm/justifiedGallery/dist/css/justifiedGallery.min.css'
+  },
+  isPhotoFigcaption: false,
+  islazyload: false,
+  isanchor: false
+};
+
+var saveToLocal = {
+  set: function setWithExpiry(key, value, ttl) {
+    const now = new Date()
+    const expiryDay = ttl * 86400000
+    const item = {
+      value: value,
+      expiry: now.getTime() + expiryDay,
+    }
+    localStorage.setItem(key, JSON.stringify(item))
+  },
+
+  get: function getWithExpiry(key) {
+    const itemStr = localStorage.getItem(key)
+
+    if (!itemStr) {
+      return undefined
+    }
+    const item = JSON.parse(itemStr)
+    const now = new Date()
+
+    if (now.getTime() > item.expiry) {
+      localStorage.removeItem(key)
+      return undefined
+    }
+    return item.value
+  }
+}</script><script id="config_change">var GLOBAL_CONFIG_SITE = { 
+  isPost: true,
+  isHome: false,
+  isHighlightShrink: true,
+  isSidebar: true,
+  postUpdate: '2020-10-15 15:34:22'
+}</script><noscript><style type="text/css">
+  #nav {
+    opacity: 1
+  }
+  .justified-gallery img {
+    opacity: 1
+  }
+
+  #recent-posts time,
+  #post-meta time {
+    display: inline !important
+  }
+</style></noscript><script>(function () {
+  window.activateDarkMode = function () {
+    document.documentElement.setAttribute('data-theme', 'dark')
+    if (document.querySelector('meta[name="theme-color"]') !== null) {
+      document.querySelector('meta[name="theme-color"]').setAttribute('content', '#0d0d0d')
+    }
+  }
+  window.activateLightMode = function () {
+    document.documentElement.setAttribute('data-theme', 'light')
+    if (document.querySelector('meta[name="theme-color"]') !== null) {
+      document.querySelector('meta[name="theme-color"]').setAttribute('content', '#ffffff')
+    }
+  }
+
+  const autoChangeMode = 'false'
+  const t = saveToLocal.get('theme')
+  if (autoChangeMode === '1') {
+    const isDarkMode = window.matchMedia('(prefers-color-scheme: dark)').matches
+    const isLightMode = window.matchMedia('(prefers-color-scheme: light)').matches
+    const isNotSpecified = window.matchMedia('(prefers-color-scheme: no-preference)').matches
+    const hasNoSupport = !isDarkMode && !isLightMode && !isNotSpecified
+
+    if (t === undefined) {
+      if (isLightMode) activateLightMode()
+      else if (isDarkMode) activateDarkMode()
+      else if (isNotSpecified || hasNoSupport) {
+        const now = new Date()
+        const hour = now.getHours()
+        const isNight = hour <= 6 || hour >= 18
+        isNight ? activateDarkMode() : activateLightMode()
+      }
+      window.matchMedia('(prefers-color-scheme: dark)').addListener(function (e) {
+        if (saveToLocal.get('theme') === undefined) {
+          e.matches ? activateDarkMode() : activateLightMode()
+        }
+      })
+    } else if (t === 'light') activateLightMode()
+    else activateDarkMode()
+  } else if (autoChangeMode === '2') {
+    const now = new Date()
+    const hour = now.getHours()
+    const isNight = hour <= 6 || hour >= 18
+    if (t === undefined) isNight ? activateDarkMode() : activateLightMode()
+    else if (t === 'light') activateLightMode()
+    else activateDarkMode()
+  } else {
+    if (t === 'dark') activateDarkMode()
+    else if (t === 'light') activateLightMode()
+  }
+})()</script><div class="aplayer" data-id="2693598459" data-server="netease" data-type="playlist" data-fixed="true" data-listFolded="false" data-order="random" data-preload="none"></div><link rel="stylesheet" href="https://cdn.bootcss.com/aplayer/1.10.1/APlayer.min.css"><script src="https://cdn.bootcss.com/aplayer/1.10.1/APlayer.min.js"></script><script src="https://cdn.jsdelivr.net/npm/meting@1.2.0/dist/Meting.min.js"></script><meta name="generator" content="Hexo 5.2.0"><link rel="alternate" href="/atom.xml" title="Ruby" type="application/atom+xml">
+</head><body><div id="loading-box"><div class="loading-left-bg"></div><div class="loading-right-bg"></div><div class="spinner-box"><div class="configure-border-1"><div class="configure-core"></div></div><div class="configure-border-2"><div class="configure-core"></div></div><div class="loading-word">加载中...</div></div></div><div id="mobile-sidebar"><div id="menu_mask"></div><div id="mobile-sidebar-menus"><div class="mobile_author_icon"><img class="avatar-img" src="/null" onerror="onerror=null;src='/img/friend_404.gif'" alt="avatar"/></div><div class="mobile_post_data"><div class="mobile_data_item is-center"><div class="mobile_data_link"><a href="/archives/"><div class="headline">文章</div><div class="length_num">40</div></a></div></div></div><hr/><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fa fa-home"></i><span> 主页</span></a></div><div class="menus_item"><a class="site-page" href="javascript:void(0);"><i class="fa-fw fa fa-graduation-cap"></i><span> 博文</span><i class="fas fa-chevron-down expand"></i></a><ul class="menus_item_child"><li><a class="site-page" href="/archives/"><i class="fa-fw fa fa-folder-open"></i><span> 归档</span></a></li><li><a class="site-page" href="/categories/"><i class="fa-fw fa fa-archive"></i><span> 分类</span></a></li><li><a class="site-page" href="/tags/"><i class="fa-fw fa fa-tags"></i><span> 标签</span></a></li></ul></div><div class="menus_item"><a class="site-page" href="javascript:void(0);"><i class="fa-fw fa fa-diamond"></i><span> 生活</span><i class="fas fa-chevron-down expand"></i></a><ul class="menus_item_child"><li><a class="site-page" href="/shuoshuo/"><i class="fa-fw fa fa-comments-o"></i><span> 说说</span></a></li><li><a class="site-page" href="/photos/"><i class="fa-fw fa fa-camera-retro"></i><span> 相册</span></a></li><li><a class="site-page" href="/music/"><i class="fa-fw fa fa-music"></i><span> 音乐</span></a></li><li><a class="site-page" href="/movies/"><i class="fa-fw fa fa-video-camera"></i><span> 视频</span></a></li></ul></div><div class="menus_item"><a class="site-page" href="/link/"><i class="fa-fw fa fa-link"></i><span> 友链</span></a></div><div class="menus_item"><a class="site-page" href="/comment/"><i class="fa-fw fa fa-paper-plane"></i><span> 留言板</span></a></div><div class="menus_item"><a class="site-page" href="/about/"><i class="fa-fw fa fa-heart"></i><span> 关于</span></a></div></div></div></div><div id="body-wrap"><div id="sidebar"><i class="fas fa-arrow-right on" id="toggle-sidebar"></i><div class="sidebar-toc"><div class="sidebar-toc__title">目录</div><div class="sidebar-toc__progress"><span class="progress-notice">你已经读了</span><span class="progress-num">0</span><span class="progress-percentage">%</span><div class="sidebar-toc__progress-bar">     </div></div><div class="sidebar-toc__content"><ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#%E8%83%8C%E6%99%AF"><span class="toc-number">1.</span> <span class="toc-text">背景</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E6%8E%92%E6%9F%A5%E9%97%AE%E9%A2%98"><span class="toc-number">2.</span> <span class="toc-text">排查问题</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#%E5%B0%9D%E8%AF%95%E5%AE%9A%E4%BD%8D%E9%97%AE%E9%A2%98%E6%96%B9%E5%BC%8F%E4%B8%80%EF%BC%9Aoracle%E5%AE%9A%E6%97%B6%E5%99%A8job%E9%95%BF%E6%97%B6%E9%97%B4%E6%89%A7%E8%A1%8C%E6%97%A0%E6%B3%95%E7%BB%93%E6%9D%9F"><span class="toc-number">2.1.</span> <span class="toc-text">尝试定位问题方式一：oracle定时器job长时间执行无法结束</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E5%B0%9D%E8%AF%95%E5%AE%9A%E4%BD%8D%E9%97%AE%E9%A2%98%E6%96%B9%E5%BC%8F%E4%BA%8C%EF%BC%9A%E6%9F%A5%E8%AF%A2job-queue-processes%E5%8F%82%E6%95%B0"><span class="toc-number">2.2.</span> <span class="toc-text">尝试定位问题方式二：查询job_queue_processes参数</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E5%B0%9D%E8%AF%95%E5%AE%9A%E4%BD%8D%E9%97%AE%E9%A2%98%E6%96%B9%E5%BC%8F%E4%B8%89%EF%BC%9Auptime-100-but-only-after-497-days"><span class="toc-number">2.3.</span> <span class="toc-text">尝试定位问题方式三：uptime  100% but only after 497 days.</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%8D%A2%E4%B8%AA%E6%80%9D%E8%B7%AF%EF%BC%8C%E9%87%8D%E5%A4%B4%E5%BC%80%E5%A7%8B%E7%9C%8B%EF%BC%88%E8%A7%A3%E5%86%B3%EF%BC%89"><span class="toc-number">2.4.</span> <span class="toc-text">换个思路，重头开始看（解决）</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E6%95%B4%E7%90%86%E4%B8%80%E4%B8%8B%E6%97%B6%E5%8C%BA%E6%9F%A5%E8%AF%A2%E7%9A%84sql"><span class="toc-number">3.</span> <span class="toc-text">整理一下时区查询的sql</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E6%80%BB%E7%BB%93"><span class="toc-number">4.</span> <span class="toc-text">总结</span></a></li></ol></div></div></div><header class="post-bg" id="page-header" style="background-image: url(/img/wall/5.jpg)"><nav id="nav"><span id="blog_name"><a id="site-name" href="/">Ruby</a></span><span id="menus"><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fa fa-home"></i><span> 主页</span></a></div><div class="menus_item"><a class="site-page" href="javascript:void(0);"><i class="fa-fw fa fa-graduation-cap"></i><span> 博文</span><i class="fas fa-chevron-down expand"></i></a><ul class="menus_item_child"><li><a class="site-page" href="/archives/"><i class="fa-fw fa fa-folder-open"></i><span> 归档</span></a></li><li><a class="site-page" href="/categories/"><i class="fa-fw fa fa-archive"></i><span> 分类</span></a></li><li><a class="site-page" href="/tags/"><i class="fa-fw fa fa-tags"></i><span> 标签</span></a></li></ul></div><div class="menus_item"><a class="site-page" href="javascript:void(0);"><i class="fa-fw fa fa-diamond"></i><span> 生活</span><i class="fas fa-chevron-down expand"></i></a><ul class="menus_item_child"><li><a class="site-page" href="/shuoshuo/"><i class="fa-fw fa fa-comments-o"></i><span> 说说</span></a></li><li><a class="site-page" href="/photos/"><i class="fa-fw fa fa-camera-retro"></i><span> 相册</span></a></li><li><a class="site-page" href="/music/"><i class="fa-fw fa fa-music"></i><span> 音乐</span></a></li><li><a class="site-page" href="/movies/"><i class="fa-fw fa fa-video-camera"></i><span> 视频</span></a></li></ul></div><div class="menus_item"><a class="site-page" href="/link/"><i class="fa-fw fa fa-link"></i><span> 友链</span></a></div><div class="menus_item"><a class="site-page" href="/comment/"><i class="fa-fw fa fa-paper-plane"></i><span> 留言板</span></a></div><div class="menus_item"><a class="site-page" href="/about/"><i class="fa-fw fa fa-heart"></i><span> 关于</span></a></div></div><span class="close" id="toggle-menu"><a class="site-page"><i class="fas fa-bars fa-fw"></i></a></span></span></nav><div id="post-info"><div id="post-title"><div class="posttitle">记一次Oracle定时器调用存储过程的坑</div></div><div id="post-meta"><div class="meta-firstline"><span class="post-meta-date"><i class="far fa-calendar-alt fa-fw post-meta-icon"></i><span class="post-meta-label">发表于</span><time class="post-meta-date-created" datetime="2020-10-15T07:26:46.652Z" title="发表于 2020-10-15 15:26:46">2020-10-15</time><span class="post-meta-separator">|</span><i class="fas fa-history fa-fw post-meta-icon"></i><span class="post-meta-label">更新于</span><time class="post-meta-date-updated" datetime="2020-10-15T07:34:22.461Z" title="更新于 2020-10-15 15:34:22">2020-10-15</time></span></div><div class="meta-secondline"> <span class="post-meta-separator">|</span><span class="post-meta-pv-cv"><i class="far fa-eye fa-fw post-meta-icon"></i><span class="post-meta-label">阅读量:</span><span id="busuanzi_value_page_pv"></span></span></div></div></div></header><main class="layout_post" id="content-inner"><article id="post"><div class="post-content" id="article-container"><!-- toc -->
+<h2 id="背景"><a href="#背景" class="headerlink" title="背景"></a>背景</h2><p>Oracle用scheduler写了一个定时器调用存储过程，每个月创建一次表。结果到定时器的执行时间了表却没有创建（预发布环境）。<br><font color='whgreen'>本地环境正常，模拟环境正常，开发环境正常，测试环境正常</font><br><font color='red'>预发布环境异常没创建表</font><br>（此时心中：万马奔腾，不得不提一句，docker真香）</p>
+<h2 id="排查问题"><a href="#排查问题" class="headerlink" title="排查问题"></a>排查问题</h2><p>刚发现这个问题的时候，一脸懵逼。特么本地环境，模拟环境，开发环境，测试环境都ok了，咋个预发布环境就出问题了？？<br><img src="https://img-blog.csdnimg.cn/20200929154912850.gif#pic_center" alt="在这里插入图片描述"><br>带着一脸懵逼，还是默默打开了oracle，查看了下定时器</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">select job_name,start_date,next_run_date,repeat_interval from user_scheduler_jobs;</span><br></pre></td></tr></table></figure>
+<p>一打开（由于预发布环境没有权限动，现在查不了异常环境的图。下图是正常情况的，这里展示一下字段。异常信息由下面写出。）：</p>
+<p>==查询后第一映入眼帘的是，我设置定时器每个月28号 09:15:05执行一次。咋到点了还没有表创建，NEXT_RUN_DATE字段下一次执行时间也没有更新==</p>
+<p><font color='red'>异常信息：</font></p>
+<p>JOB_NAME：CREATE_TABLE_BY_MONTH</p>
+<p>START_DATE：2020-09-27 18:13:05.046910 PST8PDT</p>
+<p>NEXT_RUN_DATE：<font color='red'>2020-09-28 09:15:05.000000 PST8PDT</font></p>
+<p>REPEAT_INTERVAL：FREQ=MONTHLY; INTERVAL=1; BYMONTHDAY=28; BYHOUR=9; BYMINUTE=15<br><img src="https://img-blog.csdnimg.cn/2020092915535437.png#pic_center" alt="在这里插入图片描述"></p>
+<p>之后一顿百度操作猛如虎，查看各路大佬是否遇到这类问题</p>
+<p><img src="https://img-blog.csdnimg.cn/20200929160951882.jpg#pic_center" alt="在这里插入图片描述"><br>总结可能导致的原因如下：</p>
+<ul>
+<li>oracle定时器job长时间执行无法结束。意思就是执行的时候，出于某种原因，数据库崩了之类的。job卡死。</li>
+<li>查询job_queue_processes参数</li>
+<li>系统uptime超过497天100%bug</li>
+</ul>
+<h3 id="尝试定位问题方式一：oracle定时器job长时间执行无法结束"><a href="#尝试定位问题方式一：oracle定时器job长时间执行无法结束" class="headerlink" title="尝试定位问题方式一：oracle定时器job长时间执行无法结束"></a>尝试定位问题方式一：oracle定时器job长时间执行无法结束</h3><p>参考学习博文：<a target="_blank" rel="noopener" href="https://blog.csdn.net/iamlaosong/article/details/53810762">oracle定时器job长时间执行无法结束</a><br>之后一顿操作：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line">-- 描述正在运行的Job的相关信息</span><br><span class="line">select * from dba_scheduler_running_jobs;</span><br><span class="line"></span><br><span class="line">-- 描述已经完成的Job是否成功，记录相关日志的视图，这里记录着所有已经执行完毕的日程</span><br><span class="line">select * from  user_scheduler_job_run_details;</span><br><span class="line"></span><br><span class="line">select * from user_scheduler_job_log ;</span><br><span class="line"></span><br><span class="line">-- 描述当前数据库所有已知的日程。</span><br><span class="line">select * from  dba_scheduler_schedules;</span><br><span class="line"></span><br><span class="line">-- 描述当前数据库已经定义完毕的程序</span><br><span class="line">select * from  dba_scheduler_programs;</span><br><span class="line"></span><br><span class="line">-- 描述当前数据库已经定义完毕的作业</span><br><span class="line">select * from  dba_scheduler_jobs;</span><br></pre></td></tr></table></figure>
+<p>==查询正在运行的Job的相关信息：发现并没有正在运行的==<br><img src="https://img-blog.csdnimg.cn/20200929161316365.png?x-oss-process=image/watermark,type_ZmFuZ3poZW5naGVpdGk,shadow_10,text_aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L3FxXzM4NDI1ODAz,size_16,color_FFFFFF,t_70#pic_center" alt="在这里插入图片描述"><br>==查询已经完成的Job是否成功，发现全是成功的==<br><img src="https://img-blog.csdnimg.cn/20200929161342115.png?x-oss-process=image/watermark,type_ZmFuZ3poZW5naGVpdGk,shadow_10,text_aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L3FxXzM4NDI1ODAz,size_16,color_FFFFFF,t_70#pic_center" alt="在这里插入图片描述"></p>
+<p>这时候，我：</p>
+<p><img src="https://img-blog.csdnimg.cn/20200929161546220.jpg#pic_center" alt="在这里插入图片描述"></p>
+<p>说明并不是这个原因。下来继续尝试另外的方式定位。</p>
+<h3 id="尝试定位问题方式二：查询job-queue-processes参数"><a href="#尝试定位问题方式二：查询job-queue-processes参数" class="headerlink" title="尝试定位问题方式二：查询job_queue_processes参数"></a>尝试定位问题方式二：查询job_queue_processes参数</h3><p>网上说是job_queue_processes这个参数的问题，如果为0就会失败。查询了一下，为1000.说明也不是这个问题</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">select value from v$parameter where name like &#39;%job_queue_processes%&#39;;</span><br><span class="line"></span><br><span class="line">alter system set job_queue_processes&#x3D;1000;</span><br></pre></td></tr></table></figure>
+<p><img src="https://img-blog.csdnimg.cn/20200929162052577.png#pic_center" alt="在这里插入图片描述"></p>
+<h3 id="尝试定位问题方式三：uptime-100-but-only-after-497-days"><a href="#尝试定位问题方式三：uptime-100-but-only-after-497-days" class="headerlink" title="尝试定位问题方式三：uptime  100% but only after 497 days."></a>尝试定位问题方式三：uptime  100% but only after 497 days.</h3><p>参考学习博文：<a target="_blank" rel="noopener" href="https://blog.csdn.net/pioayang/article/details/25401263">Oracle 定时器失效——解决</a></p>
+<p>简述就是 Oracle的一个bug，uptime的时间只要超过497天就会定时器失效。</p>
+<p>之后马上查了一下uptime。发现已经 440 days 了，欸。觉得还有可能是这个问题。超过497天 100%出问题，接近497天概率出问题。<br><img src="https://img-blog.csdnimg.cn/20200929163015763.jpg#pic_center" alt="在这里插入图片描述"><br>但当我准备根据博文一系列操作的时候，发现：</p>
+<p>啥？要重启主机？？预发布环境还有客户在用呢？？<br><img src="https://img-blog.csdnimg.cn/20200929163211253.jpg#pic_center" alt="在这里插入图片描述"><br>于是继续搁置。尝试另外的方式。</p>
+<p>此时一上午已经过去。。。。</p>
+<h3 id="换个思路，重头开始看（解决）"><a href="#换个思路，重头开始看（解决）" class="headerlink" title="换个思路，重头开始看（解决）"></a>换个思路，重头开始看（解决）</h3><p>START_DATE：<font color='red'>2020-09-27 18:13:05.046910 PST8PDT</font></p>
+<p>==突然再看一下定时器信息，咋个定时器开始时间：START_DATE还是前一天27号的时间？？？难道不应该是我执行定时器的时间吗？？(定时器设置是开启即马上执行存储过程一次)==</p>
+<p><img src="https://img-blog.csdnimg.cn/20200929163752215.jpg#pic_center" alt="在这里插入图片描述"><br>之后。。不停网上搜解决方式。。。</p>
+<p>30 min later…<br>45 min later…<br>60 min later…</p>
+<p>==预发布环境的时间查完了，就是不知道这个START_DATE咋个出来的。==<br><img src="https://img-blog.csdnimg.cn/2020092916494538.png?x-oss-process=image/watermark,type_ZmFuZ3poZW5naGVpdGk,shadow_10,text_aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L3FxXzM4NDI1ODAz,size_16,color_FFFFFF,t_70#pic_center" alt="在这里插入图片描述"></p>
+<p>==最后结论只有Oracle内部自己实现的START_DATE。（有无大佬可以指教一波，谢谢。网上搜半天都没找到讲解。）==</p>
+<p><img src="https://img-blog.csdnimg.cn/20200929164105597.jpg?x-oss-process=image/watermark,type_ZmFuZ3poZW5naGVpdGk,shadow_10,text_aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L3FxXzM4NDI1ODAz,size_16,color_FFFFFF,t_70#pic_center" alt="在这里插入图片描述"><br>之后找同事过来帮忙。。再一次看了下测试环境和预发布环境的user_scheduler_jobs信息。</p>
+<p>同事： prc是啥？测试环境prc结尾，预发布环境PST8PDT结尾。</p>
+<p>我：prc不知道，PST8PDT是个时区，美国加拿大那边的时区（之前注意到这的不同之处专门网上查了下，不过没在意这点！！！）</p>
+<p>同事： 会不会就是这个时区问题</p>
+<p>我（心里一惊）：<br>START_DATE：<font color='red'>2020-09-27 18:13:05.046910 PST8PDT</font></p>
+<p>NEXT_RUN_DATE：<font color='red'>2020-09-28 09:15:05.000000 PST8PDT</font></p>
+<p>下图是正常环境的图，这里只做展示字段。</p>
+<p><img src="https://img-blog.csdnimg.cn/20200929170805426.png#pic_center" alt="在这里插入图片描述"><br>算了算，我们在东8区，PST8PDT是西8区，反正就是我们快了15个小时，意思就是我当时执行时间  09-27 18:13:05.  +  15小时 = 09-28 9：13：05 ， 鬼鬼，就是我排查问题的时间！！！问题就是这！！</p>
+<p>此时：已下班1小时。。。</p>
+<p><img src="https://img-blog.csdnimg.cn/20200929165819879.gif#pic_center" alt="在这里插入图片描述"></p>
+<p>之后重新删了drop定时器，开启一个设置每次执行时间在START_DATE后面几分钟。测试成功，表成功创建。。。</p>
+<h2 id="整理一下时区查询的sql"><a href="#整理一下时区查询的sql" class="headerlink" title="整理一下时区查询的sql"></a>整理一下时区查询的sql</h2><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line">-- 查询系统时间，数据库时间等等</span><br><span class="line">select sysdate,systimestamp,current_date,current_timestamp,dbtimezone,sessiontimezone from dual;</span><br><span class="line"></span><br><span class="line">-- 查询时区</span><br><span class="line">SELECT * FROM V$TIMEZONE_NAMES;</span><br><span class="line"></span><br><span class="line">SELECT * FROM V$TIMEZONE_NAMES WHERE TZNAME&#x3D;&#39;PST8PDT&#39;;</span><br><span class="line"></span><br><span class="line">SELECT * FROM V$TIMEZONE_NAMES WHERE TZNAME&#x3D;&#39;PRC&#39;;</span><br><span class="line"></span><br><span class="line">-- 比标准时间差多少小时</span><br><span class="line">select tz_offset(&#39;PST8PDT&#39;) from dual;</span><br><span class="line"></span><br><span class="line">-- 时区转换</span><br><span class="line">select to_char(new_time(to_date(&#39;13-12-2013 17:03&#39;,&#39;dd-mm-yyyy hh24:mi&#39;),&#39;PST&#39;,&#39;EST&#39;),&#39;YYYY-MM-DD HH24:MI&#39;) from dual;</span><br><span class="line"></span><br><span class="line"></span><br><span class="line"></span><br></pre></td></tr></table></figure>
+<p>查询时区：</p>
+<p><img src="https://img-blog.csdnimg.cn/2020092917112446.png?x-oss-process=image/watermark,type_ZmFuZ3poZW5naGVpdGk,shadow_10,text_aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L3FxXzM4NDI1ODAz,size_16,color_FFFFFF,t_70#pic_center" alt="在这里插入图片描述"><br>查询相差时间：</p>
+<p><img src="https://img-blog.csdnimg.cn/20200929171144181.png?x-oss-process=image/watermark,type_ZmFuZ3poZW5naGVpdGk,shadow_10,text_aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L3FxXzM4NDI1ODAz,size_16,color_FFFFFF,t_70#pic_center" alt="在这里插入图片描述"><br>得到正在运行job的 session id</p>
+<blockquote>
+<p>如果job 使用DBMS_JOB package创建，请使用如下语句： </p>
+</blockquote>
+<blockquote>
+<p>set feedback off<br>alter session set nls_date_format=’DD-MON-YYYY HH24:MI:SS’;<br>set feedback on </p>
+</blockquote>
+<blockquote>
+<p>select   jr.job, s.username, s.sid, s.serial#, p.spid, s.lockwait, s.logon_time<br>from     dba_jobs_running jr, v$session s, v$process p<br>where    jr.sid = s.sid<br>and      s.paddr = p.addr<br>order by jr.job; </p>
+</blockquote>
+<blockquote>
+<p>如果job 使用DBMS_SCHEDULER 创建，请使用如下语句： </p>
+</blockquote>
+<blockquote>
+<p>set feedback off<br>alter session set nls_date_format=’DD-MON-YYYY HH24:MI:SS’;<br>set feedback on </p>
+</blockquote>
+<blockquote>
+<p>select    rj.job_name, s.username, s.sid, s.serial#, p.spid, s.lockwait, s.logon_time<br>from      dba_scheduler_running_jobs rj, v$session s, v$process p<br>where     rj.session_id = s.sid<br>and       s.paddr = p.addr<br>order by  rj.job_name; </p>
+</blockquote>
+<h2 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h2><ul>
+<li><font color='whitblue'>不要放过任何一个不起眼的异常点，有时候的你以为没有问题就是一个思维盲区，陷进去就出不来了</font></li>
+<li>Oracle时区问题真坑（吐槽）</li>
+<li>至此Oracle定时器START_DATE都不知道咋个计算的，需深入了解Oracle底层</li>
+</ul>
+</div><div class="post-copyright"><div class="post-copyright__author"><span class="post-copyright-meta">文章作者: </span><span class="post-copyright-info"><a href="mailto:undefined">陶成彬</a></span></div><div class="post-copyright__type"><span class="post-copyright-meta">文章链接: </span><span class="post-copyright-info"><a href="http://example.com/2020/10/15/%E8%AE%B0%E4%B8%80%E6%AC%A1Oracle%E5%AE%9A%E6%97%B6%E5%99%A8%E8%B0%83%E7%94%A8%E5%AD%98%E5%82%A8%E8%BF%87%E7%A8%8B%E7%9A%84%E5%9D%91/">http://example.com/2020/10/15/%E8%AE%B0%E4%B8%80%E6%AC%A1Oracle%E5%AE%9A%E6%97%B6%E5%99%A8%E8%B0%83%E7%94%A8%E5%AD%98%E5%82%A8%E8%BF%87%E7%A8%8B%E7%9A%84%E5%9D%91/</a></span></div><div class="post-copyright__notice"><span class="post-copyright-meta">版权声明: </span><span class="post-copyright-info">本博客所有文章除特别声明外，均采用 <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" target="_blank">CC BY-NC-SA 4.0</a> 许可协议。转载请注明来自 <a href="http://example.com" target="_blank">Ruby</a>！</span></div></div><div class="tag_share"><div class="post-meta__tag-list"></div><div class="post_share"><div class="social-share" data-image="/img/wall/5.jpg" data-sites="facebook,twitter,wechat,weibo,qq"></div><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/social-share.js/dist/css/share.min.css"><script src="https://cdn.jsdelivr.net/npm/social-share.js/dist/js/social-share.min.js" defer></script></div></div><nav class="pagination-post" id="pagination"><div class="prev-post pull-left"><a href="/2020/10/15/Spring%20boot%E6%BA%90%E7%A0%81%E6%B7%B1%E5%85%A5%E5%AD%A6%E4%B9%A0%EF%BC%88%E5%85%AD%EF%BC%89%20_%20%E5%AE%B9%E5%99%A8%E7%9A%84%E5%88%9B%E5%BB%BA%EF%BC%8C%E5%87%86%E5%A4%87%EF%BC%8C%E5%88%B7%E6%96%B0%EF%BC%8C%E5%90%AF%E5%8A%A8/"><img class="prev-cover" src="/img/wall/6.jpg" onerror="onerror=null;src='/img/404.jpg'"><div class="pagination-info"><div class="label">上一篇</div><div class="prev_info">Spring boot源码深入学习（六） | 容器的创建，准备，刷新，启动</div></div></a></div><div class="next-post pull-right"><a href="/2020/10/15/Oracle%E8%A1%A8%E7%A9%BA%E9%97%B4%E6%BB%A1%E4%BA%86%E4%B9%8B%E5%A6%82%E4%BD%95%E6%89%A9%E5%AE%B9/"><img class="next-cover" src="/img/wall/4.jpg" onerror="onerror=null;src='/img/404.jpg'"><div class="pagination-info"><div class="label">下一篇</div><div class="next_info">Oracle表空间满了之如何扩容</div></div></a></div></nav><hr/><div id="post-comment"><div class="comment-head"><div class="comment-headline"><i class="fas fa-comments fa-fw"></i><span> 评论</span></div></div><div class="comment-wrap"><div><div class="vcomment" id="vcomment"></div></div></div></div></article></main><footer id="footer" style="background-image: url(/img/wall/5.jpg)"><div id="footer-wrap"><div class="copyright">&copy;2020 By 陶成彬</div><div class="framework-info"><span>框架 </span><a target="_blank" rel="noopener" href="https://hexo.io">Hexo</a><span class="footer-separator">|</span><span>主题 </span><a target="_blank" rel="noopener" href="https://github.com/jerryc127/hexo-theme-butterfly">Butterfly</a></div></div></footer></div><section id="rightside"><div id="rightside-config-hide"><button id="readmode" type="button" title="阅读模式"><i class="fas fa-book-open"></i></button><button id="translateLink" type="button" title="简繁转换">繁</button><button id="darkmode" type="button" title="浅色和深色模式转换"><i class="fas fa-adjust"></i></button></div><div id="rightside-config-show"><button id="rightside_config" type="button" title="设置"><i class="fas fa-cog"></i></button><a id="to_comment" href="#post-comment" title="直达评论"><i class="fas fa-comments"></i></a><button class="close" id="mobile-toc-button" type="button" title="目录"><i class="fas fa-list-ul"></i></button><button id="go-up" type="button" title="回到顶部"><i class="fas fa-arrow-up"></i></button></div></section><div><script src="https://cdn.jsdelivr.net/npm/jquery@latest/dist/jquery.min.js"></script><script src="/js/utils.js"></script><script src="/js/main.js"></script><script src="/js/tw_cn.js"></script><script src="https://cdn.jsdelivr.net/npm/@fancyapps/fancybox@latest/dist/jquery.fancybox.min.js"></script><script>var preloader = {
+  endLoading: () => {
+    document.body.style.overflow = 'auto';
+    document.getElementById('loading-box').classList.add("loaded")
+  },
+  initLoading: () => {
+    document.body.style.overflow = '';
+    document.getElementById('loading-box').classList.remove("loaded")
+
+  }
+}
+window.addEventListener('load',()=> {preloader.endLoading()})</script><div class="js-pjax"><script>function loadValine () {
+  function initValine () {
+    const initData = {
+      el: '#vcomment',
+      appId: '8zYTuWegqhzdK0d62LhlAD7q-gzGzoHsz',
+      appKey: 'W8CqvWuCpU9ApxOWbwIIwEVS',
+      placeholder: 'Please leave your footprints',
+      avatar: 'monsterid',
+      meta: 'nick,mail,link'.split(','),
+      pageSize: '10',
+      lang: 'en',
+      recordIP: false,
+      serverURLs: '',
+      emojiCDN: '',
+      emojiMaps: "",
+      enableQQ: false,
+      path: window.location.pathname,
+    }
+
+    if (true) { 
+      initData.requiredFields= ('nick,mail'.split(','))
+    }
+
+    const valine = new Valine(initData)
+  }
+
+  if (typeof Valine === 'function') initValine() 
+  else $.getScript('https://cdn.jsdelivr.net/npm/valine/dist/Valine.min.js', initValine)
+}
+
+if ('Valine' === 'Valine' || !false) {
+  if (false) btf.loadComment(document.querySelector('#vcomment'),loadValine)
+  else setTimeout(() => loadValine(), 0)
+} else {
+  function loadOtherComment () {
+    loadValine()
+  }
+}</script><script async src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script></div><script defer="defer" id="fluttering_ribbon" mobile="true" src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1/dist/canvas-fluttering-ribbon.min.js"></script><script id="canvas_nest" defer="defer" color="0,0,255" opacity="0.7" zIndex="-1" count="99" mobile="true" src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1/dist/canvas-nest.min.js"></script><script id="click-heart" src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1/dist/click-heart.min.js" async="async" mobile="true"></script></div><script src="/live2dw/lib/L2Dwidget.min.js?094cbace49a39548bed64abff5988b05"></script><script>L2Dwidget.init({"model":{"jsonPath":"/live2dw/assets/haruto.model.json"},"display":{"position":"right","width":150,"height":300},"mobile":{"show":false},"log":false,"pluginJsPath":"lib/","pluginModelPath":"assets/","pluginRootPath":"live2dw/","tagMode":false});</script></body></html>

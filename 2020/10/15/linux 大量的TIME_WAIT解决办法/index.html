@@ -1,0 +1,238 @@
+<!DOCTYPE html><html lang="zh-CN" data-theme="light"><head><meta charset="UTF-8"><meta http-equiv="X-UA-Compatible" content="IE=edge"><meta name="viewport" content="width=device-width,initial-scale=1"><title>linux 大量的TIME_WAIT解决办法 | Ruby</title><meta name="author" content="陶成彬"><meta name="copyright" content="陶成彬"><meta name="format-detection" content="telephone=no"><meta name="theme-color" content="#ffffff"><meta http-equiv="Cache-Control" content="no-transform"><meta http-equiv="Cache-Control" content="no-siteapp"><meta name="description" content="转载文章：如侵权，请联系博主，立马删除。谢谢                                             发现存在大量TIME_WAIT状态的连接tcp &amp;nbsp; &amp;nbsp; &amp;nbsp; &amp;nbsp;0 &amp;nbsp; &amp;nbsp; &amp;nbsp;0 127.0.0.1:3306 &amp;nbsp; &amp;nbsp; &amp;nbsp; &amp;nbsp; &amp;nbsp; &amp;nbsp;">
+<meta property="og:type" content="article">
+<meta property="og:title" content="linux 大量的TIME_WAIT解决办法">
+<meta property="og:url" content="http://example.com/2020/10/15/linux%20%E5%A4%A7%E9%87%8F%E7%9A%84TIME_WAIT%E8%A7%A3%E5%86%B3%E5%8A%9E%E6%B3%95/index.html">
+<meta property="og:site_name" content="Ruby">
+<meta property="og:description" content="转载文章：如侵权，请联系博主，立马删除。谢谢                                             发现存在大量TIME_WAIT状态的连接tcp &amp;nbsp; &amp;nbsp; &amp;nbsp; &amp;nbsp;0 &amp;nbsp; &amp;nbsp; &amp;nbsp;0 127.0.0.1:3306 &amp;nbsp; &amp;nbsp; &amp;nbsp; &amp;nbsp; &amp;nbsp; &amp;nbsp;">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="http://example.com/img/wall/9.jpg">
+<meta property="article:published_time" content="2020-10-15T07:26:46.655Z">
+<meta property="article:modified_time" content="2020-10-15T07:37:17.861Z">
+<meta property="article:author" content="陶成彬">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="http://example.com/img/wall/9.jpg"><link rel="shortcut icon" href="/img/wall/4.jpg"><link rel="canonical" href="http://example.com/2020/10/15/linux%20%E5%A4%A7%E9%87%8F%E7%9A%84TIME_WAIT%E8%A7%A3%E5%86%B3%E5%8A%9E%E6%B3%95/"><link rel="preconnect" href="//cdn.jsdelivr.net"/><link rel="preconnect" href="//busuanzi.ibruce.info"/><link rel="stylesheet" href="/css/index.css"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free/css/all.min.css"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fancyapps/fancybox@latest/dist/jquery.fancybox.min.css"><script>var GLOBAL_CONFIG = { 
+  root: '/',
+  hexoversion: '5.2.0',
+  algolia: undefined,
+  localSearch: undefined,
+  translate: {"defaultEncoding":2,"translateDelay":0,"msgToTraditionalChinese":"繁","msgToSimplifiedChinese":"簡"},
+  noticeOutdate: undefined,
+  highlight: {"plugin":"highlighjs","highlightCopy":true,"highlightLang":true},
+  copy: {
+    success: '复制成功',
+    error: '复制错误',
+    noSupport: '浏览器不支持'
+  },
+  relativeDate: {
+    homepage: false,
+    post: false
+  },
+  runtime: '',
+  date_suffix: {
+    just: '刚刚',
+    min: '分钟前',
+    hour: '小时前',
+    day: '天前',
+    month: '个月前'
+  },
+  copyright: undefined,
+  ClickShowText: undefined,
+  lightbox: 'fancybox',
+  Snackbar: undefined,
+  justifiedGallery: {
+    js: 'https://cdn.jsdelivr.net/npm/justifiedGallery/dist/js/jquery.justifiedGallery.min.js',
+    css: 'https://cdn.jsdelivr.net/npm/justifiedGallery/dist/css/justifiedGallery.min.css'
+  },
+  isPhotoFigcaption: false,
+  islazyload: false,
+  isanchor: false
+};
+
+var saveToLocal = {
+  set: function setWithExpiry(key, value, ttl) {
+    const now = new Date()
+    const expiryDay = ttl * 86400000
+    const item = {
+      value: value,
+      expiry: now.getTime() + expiryDay,
+    }
+    localStorage.setItem(key, JSON.stringify(item))
+  },
+
+  get: function getWithExpiry(key) {
+    const itemStr = localStorage.getItem(key)
+
+    if (!itemStr) {
+      return undefined
+    }
+    const item = JSON.parse(itemStr)
+    const now = new Date()
+
+    if (now.getTime() > item.expiry) {
+      localStorage.removeItem(key)
+      return undefined
+    }
+    return item.value
+  }
+}</script><script id="config_change">var GLOBAL_CONFIG_SITE = { 
+  isPost: true,
+  isHome: false,
+  isHighlightShrink: true,
+  isSidebar: false,
+  postUpdate: '2020-10-15 15:37:17'
+}</script><noscript><style type="text/css">
+  #nav {
+    opacity: 1
+  }
+  .justified-gallery img {
+    opacity: 1
+  }
+
+  #recent-posts time,
+  #post-meta time {
+    display: inline !important
+  }
+</style></noscript><script>(function () {
+  window.activateDarkMode = function () {
+    document.documentElement.setAttribute('data-theme', 'dark')
+    if (document.querySelector('meta[name="theme-color"]') !== null) {
+      document.querySelector('meta[name="theme-color"]').setAttribute('content', '#0d0d0d')
+    }
+  }
+  window.activateLightMode = function () {
+    document.documentElement.setAttribute('data-theme', 'light')
+    if (document.querySelector('meta[name="theme-color"]') !== null) {
+      document.querySelector('meta[name="theme-color"]').setAttribute('content', '#ffffff')
+    }
+  }
+
+  const autoChangeMode = 'false'
+  const t = saveToLocal.get('theme')
+  if (autoChangeMode === '1') {
+    const isDarkMode = window.matchMedia('(prefers-color-scheme: dark)').matches
+    const isLightMode = window.matchMedia('(prefers-color-scheme: light)').matches
+    const isNotSpecified = window.matchMedia('(prefers-color-scheme: no-preference)').matches
+    const hasNoSupport = !isDarkMode && !isLightMode && !isNotSpecified
+
+    if (t === undefined) {
+      if (isLightMode) activateLightMode()
+      else if (isDarkMode) activateDarkMode()
+      else if (isNotSpecified || hasNoSupport) {
+        const now = new Date()
+        const hour = now.getHours()
+        const isNight = hour <= 6 || hour >= 18
+        isNight ? activateDarkMode() : activateLightMode()
+      }
+      window.matchMedia('(prefers-color-scheme: dark)').addListener(function (e) {
+        if (saveToLocal.get('theme') === undefined) {
+          e.matches ? activateDarkMode() : activateLightMode()
+        }
+      })
+    } else if (t === 'light') activateLightMode()
+    else activateDarkMode()
+  } else if (autoChangeMode === '2') {
+    const now = new Date()
+    const hour = now.getHours()
+    const isNight = hour <= 6 || hour >= 18
+    if (t === undefined) isNight ? activateDarkMode() : activateLightMode()
+    else if (t === 'light') activateLightMode()
+    else activateDarkMode()
+  } else {
+    if (t === 'dark') activateDarkMode()
+    else if (t === 'light') activateLightMode()
+  }
+})()</script><div class="aplayer" data-id="2693598459" data-server="netease" data-type="playlist" data-fixed="true" data-listFolded="false" data-order="random" data-preload="none"></div><link rel="stylesheet" href="https://cdn.bootcss.com/aplayer/1.10.1/APlayer.min.css"><script src="https://cdn.bootcss.com/aplayer/1.10.1/APlayer.min.js"></script><script src="https://cdn.jsdelivr.net/npm/meting@1.2.0/dist/Meting.min.js"></script><meta name="generator" content="Hexo 5.2.0"><link rel="alternate" href="/atom.xml" title="Ruby" type="application/atom+xml">
+</head><body><div id="loading-box"><div class="loading-left-bg"></div><div class="loading-right-bg"></div><div class="spinner-box"><div class="configure-border-1"><div class="configure-core"></div></div><div class="configure-border-2"><div class="configure-core"></div></div><div class="loading-word">加载中...</div></div></div><div id="mobile-sidebar"><div id="menu_mask"></div><div id="mobile-sidebar-menus"><div class="mobile_author_icon"><img class="avatar-img" src="/null" onerror="onerror=null;src='/img/friend_404.gif'" alt="avatar"/></div><div class="mobile_post_data"><div class="mobile_data_item is-center"><div class="mobile_data_link"><a href="/archives/"><div class="headline">文章</div><div class="length_num">40</div></a></div></div></div><hr/><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fa fa-home"></i><span> 主页</span></a></div><div class="menus_item"><a class="site-page" href="javascript:void(0);"><i class="fa-fw fa fa-graduation-cap"></i><span> 博文</span><i class="fas fa-chevron-down expand"></i></a><ul class="menus_item_child"><li><a class="site-page" href="/archives/"><i class="fa-fw fa fa-folder-open"></i><span> 归档</span></a></li><li><a class="site-page" href="/categories/"><i class="fa-fw fa fa-archive"></i><span> 分类</span></a></li><li><a class="site-page" href="/tags/"><i class="fa-fw fa fa-tags"></i><span> 标签</span></a></li></ul></div><div class="menus_item"><a class="site-page" href="javascript:void(0);"><i class="fa-fw fa fa-diamond"></i><span> 生活</span><i class="fas fa-chevron-down expand"></i></a><ul class="menus_item_child"><li><a class="site-page" href="/shuoshuo/"><i class="fa-fw fa fa-comments-o"></i><span> 说说</span></a></li><li><a class="site-page" href="/photos/"><i class="fa-fw fa fa-camera-retro"></i><span> 相册</span></a></li><li><a class="site-page" href="/music/"><i class="fa-fw fa fa-music"></i><span> 音乐</span></a></li><li><a class="site-page" href="/movies/"><i class="fa-fw fa fa-video-camera"></i><span> 视频</span></a></li></ul></div><div class="menus_item"><a class="site-page" href="/link/"><i class="fa-fw fa fa-link"></i><span> 友链</span></a></div><div class="menus_item"><a class="site-page" href="/comment/"><i class="fa-fw fa fa-paper-plane"></i><span> 留言板</span></a></div><div class="menus_item"><a class="site-page" href="/about/"><i class="fa-fw fa fa-heart"></i><span> 关于</span></a></div></div></div></div><div id="body-wrap"><header class="post-bg" id="page-header" style="background-image: url(/img/wall/9.jpg)"><nav id="nav"><span id="blog_name"><a id="site-name" href="/">Ruby</a></span><span id="menus"><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fa fa-home"></i><span> 主页</span></a></div><div class="menus_item"><a class="site-page" href="javascript:void(0);"><i class="fa-fw fa fa-graduation-cap"></i><span> 博文</span><i class="fas fa-chevron-down expand"></i></a><ul class="menus_item_child"><li><a class="site-page" href="/archives/"><i class="fa-fw fa fa-folder-open"></i><span> 归档</span></a></li><li><a class="site-page" href="/categories/"><i class="fa-fw fa fa-archive"></i><span> 分类</span></a></li><li><a class="site-page" href="/tags/"><i class="fa-fw fa fa-tags"></i><span> 标签</span></a></li></ul></div><div class="menus_item"><a class="site-page" href="javascript:void(0);"><i class="fa-fw fa fa-diamond"></i><span> 生活</span><i class="fas fa-chevron-down expand"></i></a><ul class="menus_item_child"><li><a class="site-page" href="/shuoshuo/"><i class="fa-fw fa fa-comments-o"></i><span> 说说</span></a></li><li><a class="site-page" href="/photos/"><i class="fa-fw fa fa-camera-retro"></i><span> 相册</span></a></li><li><a class="site-page" href="/music/"><i class="fa-fw fa fa-music"></i><span> 音乐</span></a></li><li><a class="site-page" href="/movies/"><i class="fa-fw fa fa-video-camera"></i><span> 视频</span></a></li></ul></div><div class="menus_item"><a class="site-page" href="/link/"><i class="fa-fw fa fa-link"></i><span> 友链</span></a></div><div class="menus_item"><a class="site-page" href="/comment/"><i class="fa-fw fa fa-paper-plane"></i><span> 留言板</span></a></div><div class="menus_item"><a class="site-page" href="/about/"><i class="fa-fw fa fa-heart"></i><span> 关于</span></a></div></div><span class="close" id="toggle-menu"><a class="site-page"><i class="fas fa-bars fa-fw"></i></a></span></span></nav><div id="post-info"><div id="post-title"><div class="posttitle">linux 大量的TIME_WAIT解决办法</div></div><div id="post-meta"><div class="meta-firstline"><span class="post-meta-date"><i class="far fa-calendar-alt fa-fw post-meta-icon"></i><span class="post-meta-label">发表于</span><time class="post-meta-date-created" datetime="2020-10-15T07:26:46.655Z" title="发表于 2020-10-15 15:26:46">2020-10-15</time><span class="post-meta-separator">|</span><i class="fas fa-history fa-fw post-meta-icon"></i><span class="post-meta-label">更新于</span><time class="post-meta-date-updated" datetime="2020-10-15T07:37:17.861Z" title="更新于 2020-10-15 15:37:17">2020-10-15</time></span></div><div class="meta-secondline"> <span class="post-meta-separator">|</span><span class="post-meta-pv-cv"><i class="far fa-eye fa-fw post-meta-icon"></i><span class="post-meta-label">阅读量:</span><span id="busuanzi_value_page_pv"></span></span></div></div></div></header><main class="layout_post" id="content-inner"><article id="post"><div class="post-content" id="article-container"><!-- toc -->
+<p><font color = red size = 4>转载文章：如侵权，请联系博主，立马删除。谢谢</p>
+<div id="article_content" class="article_content clearfix">
+            <link rel="stylesheet" href="https://csdnimg.cn/release/phoenix/template/css/ck_htmledit_views-3d4dc5c1de.css">
+                            <div class="htmledit_views" id="content_views">
+
+<p>发现存在大量TIME_WAIT状态的连接<br><br>tcp &nbsp; &nbsp; &nbsp; &nbsp;0 &nbsp; &nbsp; &nbsp;0 127.0.0.1:3306 &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;127.0.0.1:41378 &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; TIME_WAIT<br><br>tcp &nbsp; &nbsp; &nbsp; &nbsp;0 &nbsp; &nbsp; &nbsp;0 127.0.0.1:3306 &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;127.0.0.1:41379 &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; TIME_WAIT<br><br>tcp &nbsp; &nbsp; &nbsp; &nbsp;0 &nbsp; &nbsp; &nbsp;0 127.0.0.1:3306 &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;127.0.0.1:39352 &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; TIME_WAIT<br><br>tcp &nbsp; &nbsp; &nbsp; &nbsp;0 &nbsp; &nbsp; &nbsp;0 127.0.0.1:3306 &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;127.0.0.1:39350 &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; TIME_WAIT<br><br>tcp &nbsp; &nbsp; &nbsp; &nbsp;0 &nbsp; &nbsp; &nbsp;0 127.0.0.1:3306 &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;127.0.0.1:35763 &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; TIME_WAIT<br><br>tcp &nbsp; &nbsp; &nbsp; &nbsp;0 &nbsp; &nbsp; &nbsp;0 127.0.0.1:3306 &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;127.0.0.1:39372 &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; TIME_WAIT<br><br>tcp &nbsp; &nbsp; &nbsp; &nbsp;0 &nbsp; &nbsp; &nbsp;0 127.0.0.1:3306 &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;127.0.0.1:39373 &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; TIME_WAIT<br><br>tcp &nbsp; &nbsp; &nbsp; &nbsp;0 &nbsp; &nbsp; &nbsp;0 127.0.0.1:3306 &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;127.0.0.1:41176 &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; TIME_WAIT<br><br>&nbsp;<br><br>&nbsp;<br><br>&nbsp;<br><br><font color = red size = 4>通过调整内核参数解决<br></font><br>vi /etc/sysctl.conf<br><br><br><br>编辑文件，加入以下内容：<br><br>net.ipv4.tcp_syncookies = 1<br><br>net.ipv4.tcp_tw_reuse = 1<br><br>net.ipv4.tcp_tw_recycle = 1<br><br>net.ipv4.tcp_fin_timeout = 30<br><br>&nbsp;<br><br>然后执行/sbin/sysctl -p让参数生效。<br><br>&nbsp;<br><br>net.ipv4.tcp_syncookies = 1表示开启SYN Cookies。当出现SYN等待队列溢出时，启用cookies来处理，可防范少量SYN攻击，默认为0，表示关闭；<br><br><br><br>net.ipv4.tcp_tw_reuse = 1表示开启重用。允许将TIME-WAIT sockets重新用于新的TCP连接，默认为0，表示关闭；<br><br><br><br>net.ipv4.tcp_tw_recycle = 1表示开启TCP连接中TIME-WAIT sockets的快速回收，默认为0，表示关闭。<br><br><br><br>net.ipv4.tcp_fin_timeout修改系統默认的TIMEOUT时间<br><br>&nbsp;<br><br>修改之后，再用命令查看TIME_WAIT连接数<br><br>netstat -ae|grep “TIME_WAIT” |wc –l<br><br><br><br>&nbsp; &nbsp;发现大量的TIME_WAIT 已不存在，mysql进程的占用率很快就降下来的，网站访问正常。<br><br>&nbsp;不过很多时候，出现大量的TIME_WAIT状态的连接，往往是因为网站程序代码中没有使用mysql.colse()，才导致大量的mysql &nbsp;TIME_WAIT.<br><br>&nbsp;<br><br>&nbsp; 如果你的服务器是Windows平台，可以修改下面的注册表键值：<br><br>[HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters]<br><br>“TcpTimedWaitDelay”=dword:0000001e<br><br><br><br>此值是TIME_WAIT状态的最长时间。缺省为240秒，最低为30秒，最高为300秒。建议为30秒。<br><br>&nbsp;<br><br>注释：<br><br>（<br><br>1，TCP结束的过程如下:<br><br><br><br>Server &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; Client<br><br><br><br>————– FIN ————–&gt; &nbsp;server: fin_wait_1<br><br><br><br>&lt;————- ACK ————— client: close_wait &nbsp;server:fin_wait_2<br><br><br><br>&lt;————- FIN &nbsp;————— client发出fin之后就关闭<br><br><br><br>————– ACK ————-&gt; &nbsp;server发出ack后进入time_wait状态<br><br><br><br>Time_Wait的默认时间是2倍的MLS，就是240秒钟。MLS是TCP片在网上的最长存活时间。<br><br>TIME_Wait的主要作用是保证关闭的TCP端口不立即被使用。因为当网络存在延迟时，可能当某个端口被关闭后，网络中还有一些重传的TCP片在发向这个端口，如果这个端口立即建立新的TCP连接，则可能会有影响。所以使用2倍的MSL时间来限制这个端口立即被使用。<br><br><br><br>现在的问题在于，4分钟的时间有点长。<br><br>因此，Time_wait的影响，我想，首先每个TCP连接都各自有个数据结构，叫TCP Control Block.Time_wait的时候这个数据结构没有被释放。所以当有太多的TCP连接时，内存可能会被占用很多。<br><br>&nbsp;<br><br>&nbsp;<br><br>&nbsp;<br><br>2，To ValorZ：TIME_WAIT状态也称为2MSL等待状态，而不是2MLS，笔误吧！<br><br><br><br>每个TCP报文在网络内的最长时间，就称为MSL（Maximum Segment Lifetime），它的作用和IP数据包的TTL类似。<br><br><br><br>RFC793指出，MSL的值是2分钟，但是在实际的实现中，常用的值有以下三种：30秒，1分钟，2分钟。<br><br><br><br>注意一个问题，进入TIME_WAIT状态的一般情况下是客户端，大多数服务器端一般执行被动关闭，不会进入TIME_WAIT状态，当在服务器端关闭某个服务再重新启动时，它是会进入TIME_WAIT状态的。<br><br><br><br>举例：<br><br>1.客户端连接服务器的80服务，这时客户端会启用一个本地的端口访问服务器的80，访问完成后关闭此连接，立刻再次访问服务器的80，这时客户端会启用另一个本地的端口，而不是刚才使用的那个本地端口。原因就是刚才的那个连接还处于TIME_WAIT状态。<br><p>2.客户端连接服务器的80服务，这时服务器关闭80端口，立即再次重启80端口的服务，这时可能不会成功启动，原因也是服务器的连接还处于TIME_WAIT状态。</p></p>
+<p><br></p>
+<p><br></p>
+<p>windows</p>
+<p></p>
+<div class="article_content" style="color:rgb(0,51,153);font-family:Verdana, '宋体';font-size:14px;line-height:22px;">
+<span style="font-family:Tahoma;">TcpTimedWaitDelay和MaxUserPort设置<br>
+描述：确定 TCP/IP 可释放已关闭连接并重用其资源前，必须经过的时间。</span></div>
+<div class="article_content" style="color:rgb(0,51,153);font-family:Verdana, '宋体';font-size:14px;line-height:22px;">
+<span style="font-family:Tahoma;">关闭和释放之间的此时间间隔通称 TIME_WAIT 状态或两倍最大段生命周期（2MSL）状态。</span></div>
+<div class="article_content" style="color:rgb(0,51,153);font-family:Verdana, '宋体';font-size:14px;line-height:22px;">
+<span style="font-family:Tahoma;">此时间期间，重新打开到客户机和服务器的连接的成本少于建立新连接。</span></div>
+<div class="article_content" style="color:rgb(0,51,153);font-family:Verdana, '宋体';font-size:14px;line-height:22px;">
+<span style="font-family:Tahoma;">减少此条目的值允许 TCP/IP 更快地释放已关闭的连接，为新连接提供更多资源。如果运行的应用程序需要快速释放和创建新连接，而且由于 TIME_WAIT 中存在很多连接，导致低吞吐量，则调整此参数。</span></div>
+<div class="article_content" style="color:rgb(0,51,153);font-family:Verdana, '宋体';font-size:14px;line-height:22px;">
+<span style="font-family:Tahoma;">如何查看或设置： 使用 regedit 命令访问 HKEY_LOCAL_MACHINE/SYSTEM/CurrentControlSet/ Services/TCPIP/Parameters 注册表子键并创建名为 TcpTimedWaitDelay 的新 REG_DWORD 值。</span></div>
+<div class="article_content" style="color:rgb(0,51,153);font-family:Verdana, '宋体';font-size:14px;line-height:22px;">
+<span style="font-family:Tahoma;">将此值设置为十进制 30，其为十六进制 0x0000001e。</span></div>
+<div class="article_content" style="color:rgb(0,51,153);font-family:Verdana, '宋体';font-size:14px;line-height:22px;">
+<span style="font-family:Tahoma;">该值将等待时间设置为 30 秒。</span></div>
+<div class="article_content" style="color:rgb(0,51,153);font-family:Verdana, '宋体';font-size:14px;line-height:22px;">
+<span style="font-family:Tahoma;">停止并重新启动系统。 缺省值：0xF0，它将等待时间设置为 240 秒（4 分钟）。</span></div>
+<div class="article_content" style="color:rgb(0,51,153);font-family:Verdana, '宋体';font-size:14px;line-height:22px;">
+<span style="font-family:Tahoma;">建议值：最小值为 0x1E，它将等待时间设置为 30 秒。</span></div>
+<div class="article_content" style="color:rgb(0,51,153);font-family:Verdana, '宋体';font-size:14px;line-height:22px;">
+<span style="font-family:Tahoma;">MaxUserPort 描述：确定在应用程序从系统请求可用用户端口时，TCP/IP 可指定的最高端口号。</span></div>
+<div class="article_content" style="color:rgb(0,51,153);font-family:Verdana, '宋体';font-size:14px;line-height:22px;">
+<span style="font-family:Tahoma;">如何查看或设置： 使用 regedit 命令访问 HKEY_LOCAL_MACHINE/SYSTEM/CurrentControlSet/ Services/TCPIP/Parameters 注册表子键并创建名为 MaxUserPort 的新 REG_DWORD 值。</span></div>
+<div class="article_content" style="color:rgb(0,51,153);font-family:Verdana, '宋体';font-size:14px;line-height:22px;">
+<span style="font-family:Tahoma;">停止并重新启动系统。</span></div>
+<div class="article_content" style="color:rgb(0,51,153);font-family:Verdana, '宋体';font-size:14px;line-height:22px;">
+<span style="font-family:Tahoma;">缺省值：无 建议值：至少十进制 32768。</span></div>
+<div class="article_content" style="color:rgb(0,51,153);font-family:Verdana, '宋体';font-size:14px;line-height:22px;">
+<span style="font-family:Tahoma;">注：当在 Windows NT 或 Windows 2000 操作系统上调整 WebSphere Application Server 时，同时使用这两个参数。</span></div>
+<div class="article_content" style="color:rgb(0,51,153);font-family:Verdana, '宋体';font-size:14px;line-height:22px;">
+<br><p></p>
+&nbsp;
+                                    </div><div data-report-view="{&quot;mod&quot;:&quot;1585297308_001&quot;,&quot;dest&quot;:&quot;https://blog.csdn.net/gzh0222/article/details/8491178&quot;,&quot;extend1&quot;:&quot;pc&quot;,&quot;ab&quot;:&quot;new&quot;}"><div></div></div>
+                                </div>
+</div><div class="post-copyright"><div class="post-copyright__author"><span class="post-copyright-meta">文章作者: </span><span class="post-copyright-info"><a href="mailto:undefined">陶成彬</a></span></div><div class="post-copyright__type"><span class="post-copyright-meta">文章链接: </span><span class="post-copyright-info"><a href="http://example.com/2020/10/15/linux%20%E5%A4%A7%E9%87%8F%E7%9A%84TIME_WAIT%E8%A7%A3%E5%86%B3%E5%8A%9E%E6%B3%95/">http://example.com/2020/10/15/linux%20%E5%A4%A7%E9%87%8F%E7%9A%84TIME_WAIT%E8%A7%A3%E5%86%B3%E5%8A%9E%E6%B3%95/</a></span></div><div class="post-copyright__notice"><span class="post-copyright-meta">版权声明: </span><span class="post-copyright-info">本博客所有文章除特别声明外，均采用 <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" target="_blank">CC BY-NC-SA 4.0</a> 许可协议。转载请注明来自 <a href="http://example.com" target="_blank">Ruby</a>！</span></div></div><div class="tag_share"><div class="post-meta__tag-list"></div><div class="post_share"><div class="social-share" data-image="/img/wall/9.jpg" data-sites="facebook,twitter,wechat,weibo,qq"></div><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/social-share.js/dist/css/share.min.css"><script src="https://cdn.jsdelivr.net/npm/social-share.js/dist/js/social-share.min.js" defer></script></div></div><nav class="pagination-post" id="pagination"><div class="prev-post pull-left"><a href="/2020/10/15/nignx%EF%BC%9Amaximum%20number%20of%20descriptors%20supported%20by%20select()%20is%201024%20while%20connecting%20to%20upstream/"><img class="prev-cover" src="/img/wall/10.jpg" onerror="onerror=null;src='/img/404.jpg'"><div class="pagination-info"><div class="label">上一篇</div><div class="prev_info">nignx：maximum number of descriptors supported by select() is 1024 while connecting to upstream</div></div></a></div><div class="next-post pull-right"><a href="/2020/10/15/%E6%9F%A5%E8%AF%A2%E6%95%B0%E6%8D%AE%E5%BA%93%E5%BD%93%E5%89%8D%E8%BF%9E%E6%8E%A5%E6%95%B0(session)%EF%BC%8C%E8%BF%9B%E7%A8%8B%E6%95%B0%EF%BC%8C%E4%BF%AE%E6%94%B9%E6%9C%80%E5%A4%A7%E8%BF%9E%E6%8E%A5%E6%95%B0%E7%AD%89%E6%93%8D%E4%BD%9C/"><img class="next-cover" src="/img/wall/8.jpg" onerror="onerror=null;src='/img/404.jpg'"><div class="pagination-info"><div class="label">下一篇</div><div class="next_info">查询数据库当前连接数(session)，进程数，修改最大连接数等操作</div></div></a></div></nav><hr/><div id="post-comment"><div class="comment-head"><div class="comment-headline"><i class="fas fa-comments fa-fw"></i><span> 评论</span></div></div><div class="comment-wrap"><div><div class="vcomment" id="vcomment"></div></div></div></div></article></main><footer id="footer" style="background-image: url(/img/wall/9.jpg)"><div id="footer-wrap"><div class="copyright">&copy;2020 By 陶成彬</div><div class="framework-info"><span>框架 </span><a target="_blank" rel="noopener" href="https://hexo.io">Hexo</a><span class="footer-separator">|</span><span>主题 </span><a target="_blank" rel="noopener" href="https://github.com/jerryc127/hexo-theme-butterfly">Butterfly</a></div></div></footer></div><section id="rightside"><div id="rightside-config-hide"><button id="readmode" type="button" title="阅读模式"><i class="fas fa-book-open"></i></button><button id="translateLink" type="button" title="简繁转换">繁</button><button id="darkmode" type="button" title="浅色和深色模式转换"><i class="fas fa-adjust"></i></button></div><div id="rightside-config-show"><button id="rightside_config" type="button" title="设置"><i class="fas fa-cog"></i></button><a id="to_comment" href="#post-comment" title="直达评论"><i class="fas fa-comments"></i></a><button id="go-up" type="button" title="回到顶部"><i class="fas fa-arrow-up"></i></button></div></section><div><script src="https://cdn.jsdelivr.net/npm/jquery@latest/dist/jquery.min.js"></script><script src="/js/utils.js"></script><script src="/js/main.js"></script><script src="/js/tw_cn.js"></script><script src="https://cdn.jsdelivr.net/npm/@fancyapps/fancybox@latest/dist/jquery.fancybox.min.js"></script><script>var preloader = {
+  endLoading: () => {
+    document.body.style.overflow = 'auto';
+    document.getElementById('loading-box').classList.add("loaded")
+  },
+  initLoading: () => {
+    document.body.style.overflow = '';
+    document.getElementById('loading-box').classList.remove("loaded")
+
+  }
+}
+window.addEventListener('load',()=> {preloader.endLoading()})</script><div class="js-pjax"><script>function loadValine () {
+  function initValine () {
+    const initData = {
+      el: '#vcomment',
+      appId: '8zYTuWegqhzdK0d62LhlAD7q-gzGzoHsz',
+      appKey: 'W8CqvWuCpU9ApxOWbwIIwEVS',
+      placeholder: 'Please leave your footprints',
+      avatar: 'monsterid',
+      meta: 'nick,mail,link'.split(','),
+      pageSize: '10',
+      lang: 'en',
+      recordIP: false,
+      serverURLs: '',
+      emojiCDN: '',
+      emojiMaps: "",
+      enableQQ: false,
+      path: window.location.pathname,
+    }
+
+    if (true) { 
+      initData.requiredFields= ('nick,mail'.split(','))
+    }
+
+    const valine = new Valine(initData)
+  }
+
+  if (typeof Valine === 'function') initValine() 
+  else $.getScript('https://cdn.jsdelivr.net/npm/valine/dist/Valine.min.js', initValine)
+}
+
+if ('Valine' === 'Valine' || !false) {
+  if (false) btf.loadComment(document.querySelector('#vcomment'),loadValine)
+  else setTimeout(() => loadValine(), 0)
+} else {
+  function loadOtherComment () {
+    loadValine()
+  }
+}</script><script async src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script></div><script defer="defer" id="fluttering_ribbon" mobile="true" src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1/dist/canvas-fluttering-ribbon.min.js"></script><script id="canvas_nest" defer="defer" color="0,0,255" opacity="0.7" zIndex="-1" count="99" mobile="true" src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1/dist/canvas-nest.min.js"></script><script id="click-heart" src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1/dist/click-heart.min.js" async="async" mobile="true"></script></div><script src="/live2dw/lib/L2Dwidget.min.js?094cbace49a39548bed64abff5988b05"></script><script>L2Dwidget.init({"model":{"jsonPath":"/live2dw/assets/haruto.model.json"},"display":{"position":"right","width":150,"height":300},"mobile":{"show":false},"log":false,"pluginJsPath":"lib/","pluginModelPath":"assets/","pluginRootPath":"live2dw/","tagMode":false});</script></body></html>
